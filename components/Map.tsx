@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { WebView } from "react-native-webview";
-import * as Location from "expo-location";
 
 interface LocationType {
   coords: {
@@ -12,18 +11,17 @@ interface LocationType {
 
 const LeafletMap = () => {
   const [location, setLocation] = useState<LocationType | null>(null);
+  const webViewRef = useRef<WebView>(null);
 
   useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        console.error("Permission to access location was denied");
-        return;
-      }
-
-      let currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation);
-    })();
+    // Set a default location
+    const defaultLocation = {
+      coords: {
+        latitude: 37.7749, // Default latitude (e.g., San Francisco)
+        longitude: -122.4194, // Default longitude (e.g., San Francisco)
+      },
+    };
+    setLocation(defaultLocation);
   }, []);
 
   if (Platform.OS === "web") {
@@ -50,24 +48,10 @@ const LeafletMap = () => {
 
   const initializeMap = `
     (function() {
-      const map = L.map('map');
+      const map = L.map('map').setView([${location?.coords.latitude}, ${location?.coords.longitude}], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(map);
-
-      function updateMap(lat, lng) {
-        map.setView([lat, lng], 13);
-        L.marker([lat, lng]).addTo(map);
-      }
-
-      updateMap(${location?.coords.latitude || 0}, ${
-    location?.coords.longitude || 0
-  });
-
-      window.addEventListener('message', function(event) {
-        const { latitude, longitude } = event.data;
-        updateMap(latitude, longitude);
-      });
     })();
   `;
 
@@ -84,8 +68,6 @@ const LeafletMap = () => {
       webViewRef.current.injectJavaScript(script);
     }
   }, [location]);
-
-  const webViewRef = useRef<WebView>(null);
 
   return (
     <View style={styles.container}>
